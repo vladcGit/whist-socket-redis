@@ -8,7 +8,9 @@ import sockets from "./sockets";
 configDotenv();
 
 const httpServer = http.createServer(app);
-const socketServer = new Server(httpServer);
+const socketServer = new Server(httpServer, {
+  cors: { origin: "http://localhost:5173" },
+});
 
 const port = Number(process.env.PORT) || 3000;
 
