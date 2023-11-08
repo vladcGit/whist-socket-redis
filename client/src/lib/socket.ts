@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-export const socket = io("localhost:80", {
+export const socket = io({
   auth: {
     token: "abc",
   },
