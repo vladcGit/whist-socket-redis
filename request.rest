@@ -1,0 +1,21 @@
+### create a new game with the username Vlad
+POST http://localhost:80/api/new-game HTTP/1.1
+Content-Type: application/json
+
+{
+    "username":"Vlad"
+}
+### join an existing game with the username Andra
+POST http://localhost:80/api/join-game/715 HTTP/1.1
+Content-Type: application/json
+
+{
+    "username":"Andra"
+}
+### join an existing game with the username Gigi
+POST http://localhost:80/api/join-game/715 HTTP/1.1
+Content-Type: application/json
+
+{
+    "username":"Gigi"
+}

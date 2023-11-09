@@ -12,7 +12,8 @@ function App() {
       console.log("connected");
       console.log(socket.id);
 
-      socket.emit("playCard", "test");
+      socket.emit("public", "test");
+      socket.emit("secure");
     }
 
     function onDisconnect() {
@@ -21,6 +22,12 @@ function App() {
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
+    socket.on("secureMessage", (myId: string) => {
+      console.log(`My secure id is ${myId}`);
+    });
+    socket.on("publicMessage", () => {
+      console.log("public event");
+    });
 
     return () => {
       socket.off("connect", onConnect);
