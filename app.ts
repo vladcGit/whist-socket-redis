@@ -1,6 +1,7 @@
 import express from "express";
 import RedisService from "./services/redis.service";
 import { serializeToken } from "./services/jwt.service";
+import { gameType } from "./lib/types";
 
 const app = express();
 app.use(express.json());
@@ -12,8 +13,12 @@ app.get("/api/hello", (req, res) => {
 app.post("/api/new-game", async (req, res) => {
   try {
     const username: string = req.body.username;
+    const type: gameType = req.body.type;
     if (!username) {
       throw new Error("You need to provide a username");
+    }
+    if (!type) {
+      throw new Error("You need to provide a type of game (1-8-1 or 8-1-8)");
     }
 
     let roomId = Math.floor(Math.random() * 9999).toString();
@@ -22,7 +27,7 @@ app.post("/api/new-game", async (req, res) => {
     }
 
     const service = new RedisService(roomId);
-    await service.createGame();
+    await service.createGame(type);
     await service.addUserToGame(username);
 
     const token = serializeToken(roomId, username);

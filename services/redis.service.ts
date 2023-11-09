@@ -1,6 +1,12 @@
 import { createClient } from "redis";
 import { configDotenv } from "dotenv";
-import { UserCards, WhistGame, WhistPlayer } from "../lib/types";
+import {
+  UserCards,
+  WhistGame,
+  WhistPlayer,
+  gameType,
+  suite,
+} from "../lib/types";
 
 configDotenv();
 
@@ -19,6 +25,14 @@ const getRoomUsersKey = (roomId: string): string => {
 // key for a room (whist game)
 const getRoomKey = (roomId: string): string => {
   return `room-${roomId}`;
+};
+
+const getUserCardsKey = (userId: string): string => {
+  return `${userId}:cards`;
+};
+
+const getPlayedCardKey = (userId: string): string => {
+  return `${userId}:played-card`;
 };
 
 export default class RedisService {
@@ -53,10 +67,11 @@ export default class RedisService {
     return exists === 0;
   }
 
-  async createGame(): Promise<WhistGame> {
+  async createGame(type: gameType): Promise<WhistGame> {
     const id = getRoomKey(this.roomId);
     await this.client.hSet(id, {
       round: 1,
+      type,
     });
 
     return {
@@ -64,6 +79,7 @@ export default class RedisService {
       users: [],
       round: 1,
       started: false,
+      type,
     };
   }
 
@@ -78,10 +94,12 @@ export default class RedisService {
     }
 
     const payload = {
+      id: newUserKey,
       index: numberOfPlayers,
       name: username,
       points: 0,
       cardsLeft: 1,
+      voted: 0,
     };
 
     const arrayPromises: Promise<number | boolean>[] = [
@@ -107,38 +125,71 @@ export default class RedisService {
     }
 
     await this.client.hSet(roomKey, "started", 1);
+    // todo: whist service to give everyone cards
   }
 
-  async getPublicData(): Promise<WhistGame> {
-    const roomData = await this.client.hGetAll(getRoomKey(this.roomId));
+  async getUsersData(): Promise<WhistPlayer[]> {
     const userIds = await this.client.sMembers(getRoomUsersKey(this.roomId));
 
     const promises = userIds.map((userId) => this.client.hGetAll(userId));
     const deserializedUsers = await Promise.all(promises);
 
     const users: WhistPlayer[] = deserializedUsers.map((user) => ({
+      id: user.id,
       index: parseInt(user.index),
       name: user.name,
       points: parseInt(user.points),
       cardsLeft: parseInt(user.cardsLeft),
+      voted: parseInt(user.voted),
+      cards: user.cards,
     }));
+
+    return users;
+  }
+
+  async getPublicData(): Promise<WhistGame> {
+    const roomData = await this.client.hGetAll(getRoomKey(this.roomId));
+    const users = await this.getUsersData();
 
     return {
       id: this.roomId,
       users,
       round: parseInt(roomData.round),
       started: roomData.started !== "0",
+      type: roomData.type as gameType,
       ownerId: roomData.ownerId,
       turn: roomData.turn,
+      atu: roomData.data as suite,
     };
   }
 
+  async dealToPlayer(userId: string, cards: string) {
+    await this.client.hSet(getUserCardsKey(userId), "cards", cards);
+  }
+
   async getUsersCards(userId: string): Promise<UserCards> {
-    throw new Error("Not implemented");
+    const userCards = (await this.client.hGet(
+      getUserCardsKey(userId),
+      "cards"
+    )) as string;
+    return {
+      userId,
+      cards: userCards.split(","),
+    };
+  }
+
+  async setAtu(atu: string | null): Promise<void> {
+    const key = getRoomKey(this.roomId);
+    if (!atu) {
+      await this.client.hDel(key, "atu");
+      return;
+    }
+    await this.client.hSet(key, "atu", atu);
   }
 
   async playCard(userId: string, card: string): Promise<void> {
-    throw new Error("Not implemented");
+    const key = getPlayedCardKey(userId);
+    await this.client.set(key, card);
   }
 
   async endRound(): Promise<WhistGame> {
