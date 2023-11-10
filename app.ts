@@ -13,7 +13,7 @@ app.get("/api/hello", (req, res) => {
 app.post("/api/new-game", async (req, res) => {
   try {
     const username: string = req.body.username;
-    const type: gameType = req.body.type;
+    const type: gameType = "1-8-1";
     if (!username) {
       throw new Error("You need to provide a username");
     }
@@ -31,9 +31,12 @@ app.post("/api/new-game", async (req, res) => {
     await service.addUserToGame(username);
 
     const token = serializeToken(roomId, username);
-    return res.status(201).json({ token });
+    res.cookie("Authorization", token, {
+      signed: false,
+    });
+    return res.status(201).json({ roomId });
   } catch (error: any) {
-    return res.status(400).json(error);
+    return res.status(400).json({ error: error.message });
   }
 });
 
