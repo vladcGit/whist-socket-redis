@@ -33,9 +33,10 @@ export type WhistGame = {
   round: number;
   started: boolean;
   type: gameType;
+  nextPlayerIndex: number;
   atu?: suite;
   ownerId?: string;
-  turn?: string;
+  firstPlayerIndex: number;
 };
 
 export type UserCards = {
@@ -49,5 +50,6 @@ export type RoomPlayers = {
 };
 
 export type PlayedCards = {
+  id: string;
   card: string;
 };

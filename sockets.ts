@@ -52,7 +52,7 @@ const listen = (io: Server) => {
     });
 
     socket.on("whatAreMyCards", async () => {
-      const data = await redisService.getUsersCards(userId);
+      const data = await redisService.getUserCards(userId);
       socket.emit("yourCards", data);
     });
 

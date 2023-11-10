@@ -1,12 +1,14 @@
 import { createClient } from "redis";
 import { configDotenv } from "dotenv";
 import {
+  PlayedCards,
   UserCards,
   WhistGame,
   WhistPlayer,
   gameType,
   suite,
 } from "../lib/types";
+import { isValidNumberOfPlayers } from "./whistLogic.service";
 
 configDotenv();
 
@@ -72,6 +74,8 @@ export default class RedisService {
     await this.client.hSet(id, {
       round: 1,
       type,
+      nextPlayerIndex: 0,
+      firstPlayerIndex: 0,
     });
 
     return {
@@ -80,6 +84,8 @@ export default class RedisService {
       round: 1,
       started: false,
       type,
+      nextPlayerIndex: 0,
+      firstPlayerIndex: 0,
     };
   }
 
@@ -91,6 +97,10 @@ export default class RedisService {
 
     if (await this.client.sIsMember(roomUsersKey, newUserKey)) {
       throw new Error("A user with this name already exists in this room");
+    }
+
+    if (numberOfPlayers === 6) {
+      throw new Error("The number of users is the maximum allowed - 6");
     }
 
     const payload = {
@@ -124,6 +134,12 @@ export default class RedisService {
       throw new Error("Only the owner can start a game");
     }
 
+    const userIds = await this.client.sMembers(getRoomUsersKey(this.roomId));
+
+    if (!isValidNumberOfPlayers(userIds.length)) {
+      throw new Error("The number of players must be between 3 and 6");
+    }
+
     await this.client.hSet(roomKey, "started", 1);
     // todo: whist service to give everyone cards
   }
@@ -141,7 +157,6 @@ export default class RedisService {
       points: parseInt(user.points),
       cardsLeft: parseInt(user.cardsLeft),
       voted: parseInt(user.voted),
-      cards: user.cards,
     }));
 
     return users;
@@ -157,8 +172,9 @@ export default class RedisService {
       round: parseInt(roomData.round),
       started: roomData.started !== "0",
       type: roomData.type as gameType,
+      nextPlayerIndex: parseInt(roomData.nextPlayerIndex),
       ownerId: roomData.ownerId,
-      turn: roomData.turn,
+      firstPlayerIndex: parseInt(roomData.firstPlayerIndex),
       atu: roomData.data as suite,
     };
   }
@@ -167,7 +183,7 @@ export default class RedisService {
     await this.client.hSet(getUserCardsKey(userId), "cards", cards);
   }
 
-  async getUsersCards(userId: string): Promise<UserCards> {
+  async getUserCards(userId: string): Promise<UserCards> {
     const userCards = (await this.client.hGet(
       getUserCardsKey(userId),
       "cards"
@@ -187,6 +203,15 @@ export default class RedisService {
     await this.client.hSet(key, "atu", atu);
   }
 
+  async getCardPlayedByUser(userId: string): Promise<string> {
+    const key = getPlayedCardKey(userId);
+    const card = (await this.client.get(key)) as string;
+    if (!card) {
+      throw new Error("The user has not played any card this round");
+    }
+    return card;
+  }
+
   async playCard(userId: string, card: string): Promise<void> {
     const key = getPlayedCardKey(userId);
     await this.client.set(key, card);
@@ -202,5 +227,25 @@ export default class RedisService {
 
   async checkGameOver(): Promise<boolean> {
     throw new Error("Not implemented");
+  }
+
+  async getPlayedCards(): Promise<PlayedCards[]> {
+    const players = await this.client.sMembers(getRoomUsersKey(this.roomId));
+    const promises = players.map((player) =>
+      this.client.get(getUserCardsKey(player))
+    );
+
+    const cards = await Promise.all(promises);
+
+    const result: PlayedCards[] = [];
+    for (let i = 0; i < players.length; i++) {
+      result.push({ id: players[i], card: cards[i] as string });
+    }
+
+    return result;
+  }
+
+  async getNumberOfPlayers(): Promise<number> {
+    return await this.client.sCard(getRoomUsersKey(this.roomId));
   }
 }
