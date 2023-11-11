@@ -11,17 +11,11 @@ const listen = (io: Server) => {
       throw new Error("Invalid credentials");
     }
     const redisService = new RedisService(roomId);
+
+    // check if room exists
     socket.join(roomId);
 
     console.log("a user connected", socket.id);
-
-    socket.on("secure", (card: string) => {
-      socket.emit("secureMessage", socket.id);
-    });
-
-    socket.on("public", () => {
-      io.to(roomId).emit("publicMessage");
-    });
 
     socket.on("newPlayer", async () => {
       const data = await redisService.getPublicData();

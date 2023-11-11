@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import "@mantine/core/styles.css";
@@ -6,6 +7,8 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Homepage from "./Homepage";
 import Room from "./Room";
 import Game from "./Game";
+import { useUserContext } from "../store/user-context";
+import fetchUser from "../lib/fetch-user";
 
 const router = createBrowserRouter([
   { path: "/", element: <Homepage /> },
@@ -14,6 +17,16 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
+  const { setUser } = useUserContext();
+
+  useEffect(() => {
+    const setUserContext = async () => {
+      const user = await fetchUser();
+      setUser(user);
+    };
+    setUserContext();
+  }, []);
+
   return (
     <MantineProvider defaultColorScheme="dark">
       <Notifications position="bottom-right" />

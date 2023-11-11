@@ -144,21 +144,23 @@ export default class RedisService {
     // todo: whist service to give everyone cards
   }
 
-  async getUsersData(): Promise<WhistPlayer[]> {
-    const userIds = await this.client.sMembers(getRoomUsersKey(this.roomId));
-
-    const promises = userIds.map((userId) => this.client.hGetAll(userId));
-    const deserializedUsers = await Promise.all(promises);
-
-    const users: WhistPlayer[] = deserializedUsers.map((user) => ({
+  static async getUserData(userId: string): Promise<WhistPlayer> {
+    const user = await RedisService.clientInstance.hGetAll(userId);
+    return {
       id: user.id,
       index: parseInt(user.index),
       name: user.name,
       points: parseInt(user.points),
       cardsLeft: parseInt(user.cardsLeft),
       voted: parseInt(user.voted),
-    }));
+    };
+  }
 
+  async getUsersData(): Promise<WhistPlayer[]> {
+    const userIds = await this.client.sMembers(getRoomUsersKey(this.roomId));
+    const users = await Promise.all(
+      userIds.map((userId) => RedisService.getUserData(userId))
+    );
     return users;
   }
 
