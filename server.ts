@@ -18,7 +18,6 @@ const port = Number(process.env.PORT) || 3000;
 
 httpServer.listen(port, async () => {
   await RedisService.connect();
-  console.log(await new RedisService("715").getPublicData());
   console.log(`listening on port ${port}`);
 });
 
