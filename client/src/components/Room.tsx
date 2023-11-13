@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect, SetStateAction, ChangeEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSocket } from "../hooks/useSocket";
 import Cookies from "js-cookie";
-import { WhistGame } from "../../../lib/types";
+import { WhistGame, gameType } from "../../../lib/types";
 import {
   Button,
   Card,
@@ -12,12 +12,13 @@ import {
   Grid,
   Group,
   Radio,
-  RadioGroup,
   Skeleton,
   Text,
 } from "@mantine/core";
 import { useUserContext } from "../store/user-context";
 import classes from "./Room.module.css";
+import axios from "axios";
+import { Socket } from "socket.io-client";
 
 export default function Room() {
   const { id } = useParams();
@@ -25,36 +26,68 @@ export default function Room() {
     throw new Error("The id of the room is not defined");
   }
 
+  const navigate = useNavigate();
+
   const [game, setGame] = useState<WhistGame | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   const { user } = useUserContext();
 
   useEffect(() => {
     console.log(id);
+
     function onConnect() {
       console.log("connected");
       console.log(socket.id);
     }
 
+    function onNewPlayer(data: WhistGame) {
+      console.log(data);
+      setGame(data);
+    }
+
+    function onStartGame() {
+      navigate(`/room/${id}/game`);
+    }
+
     const cookie = Cookies.get("Authorization") as string;
     const socket = useSocket(id, cookie);
+    setSocket(socket);
     socket.on("connect", onConnect);
+    socket.on("startGame", onStartGame);
+    socket.on("newPlayer", onNewPlayer);
     socket.connect();
 
     socket.emit("newPlayer");
-    socket.on("newPlayer", (data: WhistGame) => {
-      console.log(data);
-      setGame(data);
-    });
 
     return () => {
       socket.off("connect", onConnect);
+      socket.off("startGame", onStartGame);
+      socket.off("newPlayer", onNewPlayer);
     };
   }, []);
 
-  const handleStartGame = () => {}; // todo
+  const handleStartGame = () => {
+    socket?.emit("startGame");
+  }; // todo
 
-  const handleModifyGameType = () => {}; // todo
+  const handleModifyGameType = async (e: ChangeEvent<HTMLInputElement>) => {
+    //todo solve
+    const type: gameType = e.target.value as gameType;
+    await axios.put(
+      `/api/edit-game/${id}/type`,
+      { type },
+      { headers: { Authorization: Cookies.get("Authorization") } }
+    );
+
+    setGame(((oldGame) => {
+      if (!oldGame) {
+        return;
+      }
+      oldGame.type = type;
+      setGame(oldGame);
+    }) as SetStateAction<WhistGame | null>);
+  }; // todo
 
   return (
     <div className={classes.wrapper}>
@@ -76,15 +109,18 @@ export default function Room() {
               label="Play with your card unseen on games of one"
             />
             <Divider my="xl" />
-            <RadioGroup
-              value={game?.type}
-              onChange={handleModifyGameType}
-              label="Select game type"
-              size="xl"
-            >
-              <Radio value="1-8-1" label="1-8-1" />
-              <Radio value="8-1-8" label="8-1-8" />
-            </RadioGroup>
+            <Radio.Group value={game?.type} label="Select game type" size="xl">
+              <Radio
+                value="1-8-1"
+                label="1-8-1"
+                onChange={handleModifyGameType}
+              />
+              <Radio
+                value="8-1-8"
+                label="8-1-8"
+                onChange={handleModifyGameType}
+              />
+            </Radio.Group>
           </>
         )}
       </Container>

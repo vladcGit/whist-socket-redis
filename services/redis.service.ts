@@ -76,6 +76,7 @@ export default class RedisService {
       type,
       nextPlayerIndex: 0,
       firstPlayerIndex: 0,
+      started: 0,
     });
 
     return {
@@ -179,6 +180,15 @@ export default class RedisService {
       firstPlayerIndex: parseInt(roomData.firstPlayerIndex),
       atu: roomData.data as suite,
     };
+  }
+
+  async getRoomOwnerId() {
+    const owner = await this.client.hGet(this.roomId, "ownerId");
+    return owner;
+  }
+
+  async modifyGameType(type: gameType) {
+    await this.client.hSet(this.roomId, "type", type);
   }
 
   async dealToPlayer(userId: string, cards: string) {

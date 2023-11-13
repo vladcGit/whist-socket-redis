@@ -82,4 +82,23 @@ app.post("/api/join-game/:id", async (req, res) => {
   }
 });
 
+app.put("/api/edit-game/:id/type", async (req, res) => {
+  const { id } = req.params;
+  const token = req.headers.authorization;
+  if (!token) {
+    throw new Error("You need to provide a JWT in the authorization header");
+  }
+  const userId = deserializeToken(token);
+  const redisService = new RedisService(id);
+  const roomOwnerId = await redisService.getRoomOwnerId();
+
+  if (userId !== roomOwnerId) {
+    return res.status(403);
+  }
+
+  const { type }: { type: gameType } = req.body;
+  await redisService.modifyGameType(type);
+  return res.status(200);
+});
+
 export default app;

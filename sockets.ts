@@ -24,8 +24,12 @@ const listen = (io: Server) => {
 
     socket.on("startGame", async () => {
       await redisService.startGame(userId);
-      const data = redisService.getPublicData();
-      io.to(roomId).emit("startGame", data);
+      io.to(roomId).emit("startGame");
+    });
+
+    socket.on("getPublicData", async () => {
+      const data = await redisService.getPublicData();
+      socket.emit("publicData", data);
     });
 
     socket.on("playedCard", async (card: string) => {
