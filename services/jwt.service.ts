@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import { configDotenv } from "dotenv";
-import { getUserKey } from "./redis.service";
+import { getUserKey } from "./redis/getRedisKeys.service";
 
 configDotenv();
 

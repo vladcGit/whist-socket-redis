@@ -21,10 +21,12 @@ export type gameType = "1-8-1" | "8-1-8";
 export type WhistPlayer = {
   id: string;
   index: number;
+  indexThisRound: number;
   name: string;
   points: number;
-  cardsLeft: number;
-  voted: number;
+  voted: number | null;
+  cards: string;
+  lastCardPlayed: string | null;
 };
 
 export type WhistGame = {
@@ -32,11 +34,11 @@ export type WhistGame = {
   users: WhistPlayer[];
   round: number;
   started: boolean;
+  ended: boolean;
   type: gameType;
   nextPlayerIndex: number;
-  atu?: suite;
+  atu?: string;
   ownerId?: string;
-  firstPlayerIndex: number;
 };
 
 export type UserCards = {

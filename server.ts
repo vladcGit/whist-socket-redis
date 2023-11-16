@@ -5,7 +5,7 @@ import { configDotenv } from "dotenv";
 import {} from "./environment";
 import app from "./app";
 import sockets from "./sockets";
-import RedisService from "./services/redis.service";
+import client from "./repositories/redis.repo";
 
 configDotenv();
 
@@ -17,7 +17,7 @@ const socketServer = new Server(httpServer, {
 const port = Number(process.env.PORT) || 3000;
 
 httpServer.listen(port, async () => {
-  await RedisService.connect();
+  await client.connect();
   console.log(`listening on port ${port}`);
 });
 

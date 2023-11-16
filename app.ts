@@ -1,7 +1,14 @@
 import express from "express";
-import RedisService from "./services/redis.service";
 import { deserializeToken, serializeToken } from "./services/jwt.service";
 import { gameType } from "./lib/types";
+import { getUserCompleteData } from "./services/redis/user.redis.service";
+import {
+  addUser,
+  createGame,
+  existsRoomWithId,
+  getRoomOwnerId,
+  setGameType,
+} from "./services/redis/game.redis.service";
 
 const app = express();
 app.use(express.json());
@@ -17,7 +24,7 @@ app.get("/api/whoami", async (req, res) => {
       throw new Error("You need to provide a JWT in the authorization header");
     }
     const userId = deserializeToken(token);
-    const user = await RedisService.getUserData(userId);
+    const user = await getUserCompleteData(userId);
     return res
       .status(200)
       .json({ id: user.id, name: user.name, index: user.index });
@@ -38,13 +45,11 @@ app.post("/api/new-game", async (req, res) => {
     }
 
     let roomId = Math.floor(Math.random() * 9999).toString();
-    while (!(await RedisService.isUniqueRoomId(roomId))) {
+    while (await existsRoomWithId(roomId)) {
       roomId = Math.floor(Math.random() * 9999).toString();
     }
-
-    const service = new RedisService(roomId);
-    await service.createGame(type);
-    await service.addUserToGame(username);
+    await createGame(roomId, type);
+    await addUser(roomId, username);
 
     const token = serializeToken(roomId, username);
     res.cookie("Authorization", token, {
@@ -59,7 +64,7 @@ app.post("/api/new-game", async (req, res) => {
 app.post("/api/join-game/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    if (await RedisService.isUniqueRoomId(id)) {
+    if (!(await existsRoomWithId(id))) {
       throw new Error("This room does not exist");
     }
 
@@ -68,8 +73,7 @@ app.post("/api/join-game/:id", async (req, res) => {
       throw new Error("You need to provide a username");
     }
 
-    const redisService = new RedisService(id);
-    await redisService.addUserToGame(username);
+    await addUser(id, username);
 
     const token = serializeToken(id, username);
     res.cookie("Authorization", token, {
@@ -89,15 +93,15 @@ app.put("/api/edit-game/:id/type", async (req, res) => {
     throw new Error("You need to provide a JWT in the authorization header");
   }
   const userId = deserializeToken(token);
-  const redisService = new RedisService(id);
-  const roomOwnerId = await redisService.getRoomOwnerId();
+
+  const roomOwnerId = await getRoomOwnerId(id);
 
   if (userId !== roomOwnerId) {
     return res.status(403);
   }
 
   const { type }: { type: gameType } = req.body;
-  await redisService.modifyGameType(type);
+  await setGameType(id, type);
   return res.status(200);
 });
 

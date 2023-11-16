@@ -1,32 +1,10 @@
-import {
-  PlayedCards,
-  WhistGame,
-  faceCard,
-  faceCardsEnum,
-  suite,
-} from "../lib/types";
-import RedisService from "./redis.service";
-
-export const isValidNumberOfPlayers = (noOfPlayers: number) => {
-  return noOfPlayers >= 3 && noOfPlayers <= 6;
-};
-
-const getCardValue = (card: string) => {
-  const value = card[0];
-  if (Number.isInteger(value)) {
-    return value;
-  }
-  const faceValue = faceCardsEnum[value as faceCard];
-  if (!faceValue) {
-    throw new Error("Invalid Card");
-  }
-};
+import { WhistGame, suite } from "../lib/types";
 
 const compareCards = (
   a: string,
   b: string,
   firstSuite: suite,
-  atu: suite | null = null
+  atu: string | null = null
 ) => {
   if (atu) {
     if (a[1] === atu[1] && b[1] !== atu[1]) return -1;
@@ -54,39 +32,39 @@ const compareCards = (
   return a.charCodeAt(0) > b.charCodeAt(0) ? -1 : 1;
 };
 
-const determineWinner = async (
-  room: WhistGame,
-  playedCards: PlayedCards[]
-): Promise<number> => {
-  const redisService = new RedisService(room.id);
-
+export const determineWinner = async (room: WhistGame): Promise<number> => {
   // get the order of the players this turn (by index assigned at room creation)
-  const indexes: number[] = [];
-  const numberOfPlayers = await redisService.getNumberOfPlayers();
 
-  for (let i = room.firstPlayerIndex; i < numberOfPlayers; i++) {
-    indexes.push(i);
+  room.users.sort((a, b) => a.indexThisRound - b.indexThisRound);
+  const firstPlayerCard = room.users[0].lastCardPlayed;
+  if (!firstPlayerCard) {
+    throw new Error("No card has been played this round");
   }
-  for (let i = 0; i < room.firstPlayerIndex; i++) {
-    indexes.push(i);
-  }
-
-  const playersInOrder = indexes.map(
-    (index) => room.users.find((user) => user.index === index)?.id as string
-  );
-
-  const cards = await Promise.all(
-    playersInOrder.map((playerId) => redisService.getCardPlayedByUser(playerId))
-  );
-
-  const cardsWithPlayerIndex = cards.map((card, index) => ({
-    card: card,
-    index: indexes[index],
+  const cardsWithPlayerIndex = room.users.map((user) => ({
+    index: user.indexThisRound,
+    card: user.lastCardPlayed,
   }));
 
-  cardsWithPlayerIndex.sort((obj1, obj2) =>
-    compareCards(obj1.card, obj2.card, cards[1] as suite, room.atu)
+  if (cardsWithPlayerIndex.some((user) => !user.card)) {
+    throw new Error("An user has not played a card this round");
+  }
+
+  cardsWithPlayerIndex.sort((a, b) =>
+    compareCards(
+      a.card as string,
+      b.card as string,
+      firstPlayerCard[1] as suite,
+      room.atu
+    )
   );
 
   return cardsWithPlayerIndex[0].index;
+};
+
+export const getValidNumberOfPlayers: () => [number, number] = () => {
+  return [3, 6];
+};
+
+export const getMaximumRoundNumber = (noOfPlayers: number) => {
+  return noOfPlayers * 3 + 12;
 };

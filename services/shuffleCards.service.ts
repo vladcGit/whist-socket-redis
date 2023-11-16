@@ -1,4 +1,4 @@
-import RedisService from "./redis.service";
+import { gameType, suite } from "../lib/types";
 
 const shuffleStrategyOneEightOne = (round: number, numberOfPlayers: number) => {
   let numberOfCards: number;
@@ -58,8 +58,12 @@ const randomShuffle = (deck: string[]) => {
   }
 };
 
-export const shuffleCards = async (roomId: string) => {
-  let deck = [
+export const shuffleCards = (
+  round: number,
+  type: gameType,
+  numberOfPlayers: number
+) => {
+  const deck = [
     "2H",
     "2S",
     "2C",
@@ -114,39 +118,21 @@ export const shuffleCards = async (roomId: string) => {
     "AD",
   ];
 
-  const redisService = new RedisService(roomId);
-  const room = await redisService.getPublicData();
-  const players = room.users;
+  const slicedDeck = deck.slice(-numberOfPlayers * 8);
+  randomShuffle(slicedDeck);
 
-  const numberOfPlayers = players.length;
+  const numberOfCards =
+    type === "1-8-1"
+      ? shuffleStrategyOneEightOne(round, numberOfPlayers)
+      : strategyEightOneEight(round, numberOfPlayers);
 
-  // elimina carti in functie de cati jucatori sunt
-  deck = deck.slice(-numberOfPlayers * 8);
-
-  //vezi cate carti trebuie impartite
-  const round = room.round;
-  const type = room.type;
-  let numberOfCards: number;
-  if (type === "1-8-1") {
-    numberOfCards = shuffleStrategyOneEightOne(round, numberOfPlayers);
-  } else {
-    numberOfCards = strategyEightOneEight(round, numberOfPlayers);
-  }
-
-  // shuffle deck and deal to players
-  randomShuffle(deck);
-  for (let player of players) {
-    const playerCards = [];
-    for (let i = 0; i < numberOfCards; i++) {
-      playerCards.push(deck.pop());
+  const cards = Array.from({ length: numberOfPlayers }, () => {
+    const currentUserCards = [];
+    for (let j = 0; j < numberOfCards; j++) {
+      currentUserCards.push(slicedDeck.pop() as string);
     }
-    await redisService.dealToPlayer(player.id, playerCards.join(","));
-  }
+    return currentUserCards;
+  });
 
-  if (numberOfCards !== 8) {
-    await redisService.setAtu(deck.pop() as string);
-  } else {
-    await redisService.setAtu(null);
-  }
-  console.log(numberOfCards);
+  return { cards, atu: deck.pop() };
 };
