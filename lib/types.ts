@@ -25,6 +25,7 @@ export type WhistPlayer = {
   name: string;
   points: number;
   voted: number | null;
+  pointsThisRound: number;
   cards: string;
   lastCardPlayed: string | null;
 };
