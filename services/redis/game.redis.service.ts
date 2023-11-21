@@ -9,10 +9,19 @@ import { shuffleCards } from "../shuffleCards.service";
 import {
   createUser,
   getUserPublicData,
-  playCard,
+  playCard as userPlayCard,
   updateUserForNewRound,
+  vote as updateUserVote,
+  updateUserScoreThisRound,
+  updateUserPoints,
+  setUserLastPlayedCard,
+  resetUserScoreThisRound,
 } from "./user.redis.service";
-import { getMaximumRoundNumber } from "../whistLogic.service";
+import {
+  determineWinner,
+  getMaximumRoundNumber,
+  isValidVote,
+} from "../whistLogic.service";
 
 const existsRoomWithId: (roomId: string) => Promise<boolean> = async (
   roomId: string
@@ -105,19 +114,98 @@ const startGame: (roomId: string) => Promise<void> = async (roomId: string) => {
   await nextRound(roomId);
 };
 
-export const checkRoundOver: (roomId: string) => Promise<boolean> = async (
-  roomId: string
-) => {
-  const roomData = await getRoomData(roomId);
-  const usersInOrder = roomData.users.sort(
-    (b, a) => b.indexThisRound - a.indexThisRound
-  );
-  return usersInOrder[0].lastCardPlayed !== null;
+const vote = async (
+  roomId: string,
+  userId: string,
+  vote: number
+): Promise<void> => {
+  const room = await getRoomData(roomId);
+  if (!room.started) {
+    throw new Error("Game has not started yet");
+  }
+
+  if (room.ended) {
+    throw new Error("Game has ended");
+  }
+
+  if (room.users.find((u) => u.id === userId)?.voted) {
+    throw new Error("You have already voted");
+  }
+
+  const isLastPlayer = room.users[room.users.length - 1].id === userId;
+  const sumOfPrevVotes = room.users
+    .map((user) => user.voted)
+    .reduce((a, b) => (a || 0) + (b || 0), 0);
+
+  if (
+    !isValidVote(
+      isLastPlayer,
+      room.users[0].cards.split(",").length,
+      sumOfPrevVotes || 0,
+      vote
+    )
+  ) {
+    throw new Error("This vote is not valid");
+  }
+
+  return updateUserVote(userId, vote);
+};
+
+const playCard: (
+  roomId: string,
+  userId: string,
+  card: string
+) => Promise<void> = async (roomId: string, userId: string, card: string) => {
+  let room = await getRoomData(roomId);
+  if (!room.started) {
+    throw new Error("Game has not started yet");
+  }
+
+  if (room.ended) {
+    throw new Error("Game has ended");
+  }
+
+  await userPlayCard(userId, card);
+
+  room = await getRoomData(roomId);
+
+  if (room.users.some((user) => !user.lastCardPlayed)) {
+    return;
+  }
+
+  const winnerIndex = determineWinner(room);
+  const winnerId = room.users.find((user) => user.index === winnerIndex)?.id;
+  if (!winnerId) {
+    throw new Error("No winner");
+  }
+  await updateUserScoreThisRound(winnerId, 1);
+
+  room = await getRoomData(roomId);
+
+  if (room.users.every((user) => user.cards.length === 0)) {
+    const promisesArray: Promise<void>[] = [];
+    for (let user of room.users) {
+      const score =
+        user.pointsThisRound === user.voted
+          ? user.voted + 5
+          : -(user.voted || 0);
+      promisesArray.push(updateUserPoints(user.id, score));
+    }
+
+    await Promise.all(promisesArray);
+    await nextRound(roomId);
+  }
 };
 
 const nextRound: (roomId: string) => Promise<void> = async (roomId: string) => {
   await client.hIncrBy(getRoomKey(roomId), "round", 1);
   const roomData = await getRoomData(roomId);
+
+  // reset data for each user
+  await Promise.all([
+    ...roomData.users.map((user) => setUserLastPlayedCard(user.id, null)),
+    ...roomData.users.map((user) => resetUserScoreThisRound(user.id)),
+  ]);
 
   // todo: check if game is over
   if (getMaximumRoundNumber(roomData.users.length) < roomData.round) {
@@ -170,6 +258,9 @@ export {
   getRoomOwnerId,
   getRoomData,
   startGame,
+  setAtu,
+  vote,
+  playCard,
   nextRound,
   endGame,
 };

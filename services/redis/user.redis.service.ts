@@ -5,15 +5,17 @@ const getUserCompleteData: (userId: string) => Promise<WhistPlayer> = async (
   userId: string
 ) => {
   const user = await client.hGetAll(userId);
+  const voted = parseInt(user.voted);
   return {
     id: userId,
     index: parseInt(user.index),
     indexThisRound: parseInt(user.indexThisRound),
     name: user.name,
     points: parseInt(user.points),
-    voted: parseInt(user.voted) || null,
+    pointsThisRound: +user.pointsThisRound,
+    voted: isNaN(voted) ? null : voted,
     cards: user.cards,
-    lastCardPlayed: user.lastCardPlayed,
+    lastCardPlayed: user.lastCardPlayed || null,
   };
 };
 
@@ -38,6 +40,9 @@ const getUserPublicData: (userId: string) => Promise<WhistPlayer> = async (
   const blankCards = user.cards
     .split(",")
     .map((card) => {
+      if (card.length === 0) {
+        return "";
+      }
       return "blank";
     })
     .join(",");
@@ -73,7 +78,7 @@ export const playCard: (userId: string, card: string) => Promise<void> = async (
   await setUserLastPlayedCard(userId, card);
 };
 
-const vote: (userId: string, vote: number) => Promise<void> = async (
+export const vote: (userId: string, vote: number) => Promise<void> = async (
   userId: string,
   vote: number
 ) => {
@@ -96,6 +101,19 @@ const setUserLastPlayedCard: (
     return;
   }
   await client.hSet(userId, "lastCardPlayed", card);
+};
+
+const incrementUserScoreThisRound: (
+  userId: string,
+  pointsLastRound: 1 | 0
+) => Promise<void> = async (userId: string, pointsLastRound: number) => {
+  await client.hIncrBy(userId, "pointsThisRound", pointsLastRound);
+};
+
+const resetUserScoreThisRound: (userId: string) => Promise<void> = async (
+  userId: string
+) => {
+  await client.hSet(userId, "pointsThisRound", 0);
 };
 
 const updateUserPoints: (
@@ -128,5 +146,9 @@ export {
   createUser,
   getUserCompleteData,
   getUserPublicData,
+  incrementUserScoreThisRound as updateUserScoreThisRound,
   updateUserForNewRound,
+  updateUserPoints,
+  setUserLastPlayedCard,
+  resetUserScoreThisRound,
 };

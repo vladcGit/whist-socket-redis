@@ -32,7 +32,7 @@ const compareCards = (
   return a.charCodeAt(0) > b.charCodeAt(0) ? -1 : 1;
 };
 
-export const determineWinner = async (room: WhistGame): Promise<number> => {
+export const determineWinner = (room: WhistGame): number => {
   // get the order of the players this turn (by index assigned at room creation)
 
   room.users.sort((a, b) => a.indexThisRound - b.indexThisRound);
@@ -67,4 +67,17 @@ export const getValidNumberOfPlayers: () => [number, number] = () => {
 
 export const getMaximumRoundNumber = (noOfPlayers: number) => {
   return noOfPlayers * 3 + 12;
+};
+
+export const isValidVote = (
+  isLastPlayer: boolean,
+  numberOfCards: number,
+  sumOfPrevVotes: number,
+  vote: number
+) => {
+  if (!isLastPlayer) {
+    return true;
+  }
+
+  return vote + sumOfPrevVotes !== numberOfCards;
 };
