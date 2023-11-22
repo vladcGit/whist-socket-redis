@@ -134,5 +134,5 @@ export const shuffleCards = (
     return currentUserCards;
   });
 
-  return { cards, atu: deck.pop() };
+  return { cards, atu: slicedDeck.pop() };
 };
