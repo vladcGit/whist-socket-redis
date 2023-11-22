@@ -1,18 +1,19 @@
 import { Server } from "socket.io";
 import { deserializeToken } from "./services/jwt.service";
 import {
-  checkRoundOver,
   getRoomData,
-  nextRound,
+  playCard,
   startGame,
+  vote,
 } from "./services/redis/game.redis.service";
-import { getUserCards, playCard } from "./services/redis/user.redis.service";
+import { getUserCards } from "./services/redis/user.redis.service";
 
 const listen = (io: Server) => {
   io.on("connection", async (socket) => {
-    const roomId: string = socket.handshake.auth.roomId;
     const token: string = socket.handshake.auth.token;
     const userId = deserializeToken(token);
+    const roomId = userId.split(":")[0].split("#")[1];
+
     if (!token || !roomId) {
       throw new Error("Invalid credentials");
     }
@@ -37,20 +38,18 @@ const listen = (io: Server) => {
       socket.emit("publicData", data);
     });
 
-    socket.on("playedCard", async (card: string) => {
-      await playCard(userId, card);
-      io.to(roomId).emit("playedCard", { userId, card });
+    socket.on("vote", async (v: number) => {
+      await vote(roomId, userId, v);
+    });
 
-      const roundEnded = await checkRoundOver(roomId);
-      if (roundEnded) {
-        const data = await nextRound(roomId);
-        io.to(roomId).emit("endRound", data);
-      }
+    socket.on("playedCard", async (card: string) => {
+      await playCard(roomId, userId, card);
+      io.to(roomId).emit("playedCard", { userId, card });
     });
 
     socket.on("whatAreMyCards", async () => {
       const data = await getUserCards(userId);
-      socket.emit("yourCards", data);
+      socket.emit("yourCards", data.join(","));
     });
 
     socket.on("disconnect", (reason) => {
