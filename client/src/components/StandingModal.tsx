@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Modal, Button, Group } from "@mantine/core";
-import { useUserContext } from "../store/user-context";
 import { WhistGame } from "../../../lib/types";
 
 import classes from "./StandingModal.module.css";
@@ -10,7 +9,6 @@ type Props = {
 };
 
 export default function StandingModal({ game }: Props) {
-  const {} = useUserContext();
   const [opened, setOpened] = useState(false);
   const playersCopy = [...game.users];
   playersCopy.sort((a, b) => b.points - a.points);

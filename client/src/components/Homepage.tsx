@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import updateGradient from "../lib/gradient";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import useErrorNotification from "../hooks/useErrorNotification";
+import customNotification from "../lib/customNotification";
 import { useUserContext } from "../store/user-context";
 import fetchUser from "../lib/fetch-user";
 
@@ -24,7 +24,7 @@ export default function Homepage() {
   const handleCreateRoom = async () => {
     try {
       if (name.length <= 3) {
-        return useErrorNotification(
+        return customNotification(
           "Validation error",
           "You need to provide a name with at least 3 letters"
         );
@@ -36,7 +36,7 @@ export default function Homepage() {
       setUser(user);
       navigate(`/room/${roomId}`);
     } catch (e: any) {
-      useErrorNotification("An error occured", e.response.data.error);
+      customNotification("An error occured", e.response.data.error);
       setLoading(false);
     }
   };
@@ -44,7 +44,7 @@ export default function Homepage() {
   const handleJoinRoom = async () => {
     try {
       if (name.length <= 3) {
-        return useErrorNotification(
+        return customNotification(
           "Validation error",
           "You need to provide a name with at least 3 letters"
         );
@@ -55,7 +55,7 @@ export default function Homepage() {
       setUser(user);
       navigate(`/room/${code}`);
     } catch (e: any) {
-      useErrorNotification("An error occured", e.response.data.error);
+      customNotification("An error occured", e.response.data.error);
       setLoading(false);
     }
   };
