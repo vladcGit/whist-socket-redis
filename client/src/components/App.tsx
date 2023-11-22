@@ -25,7 +25,7 @@ export default function App() {
       setUser(user);
     };
     setUserContext();
-  }, []);
+  }, [setUser]);
 
   return (
     <MantineProvider defaultColorScheme="dark">
