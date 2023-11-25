@@ -40,11 +40,13 @@ const listen = (io: Server) => {
 
     socket.on("vote", async (v: number) => {
       await vote(roomId, userId, v);
+      io.to(roomId).emit("vote", { userId, vote: v });
     });
 
     socket.on("playedCard", async (card: string) => {
       await playCard(roomId, userId, card);
-      io.to(roomId).emit("playedCard", { userId, card });
+      const data = await getRoomData(roomId);
+      io.to(roomId).emit("publicData", data);
     });
 
     socket.on("whatAreMyCards", async () => {

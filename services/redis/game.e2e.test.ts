@@ -49,7 +49,6 @@ describe("End to end game", () => {
   });
 
   test("users should have a card", async () => {
-    await startGame(roomId);
     const roomData = await getRoomData(roomId);
     for (let user of roomData.users) {
       const cards = await getUserCards(user.id);
@@ -67,7 +66,6 @@ describe("End to end game", () => {
   test("users should not have any last card played", async () => {
     const roomData = await getRoomData(roomId);
     for (let user of roomData.users) {
-      console.log(user.lastCardPlayed);
       expect(user.lastCardPlayed).toBeNull();
     }
   });
@@ -115,6 +113,10 @@ describe("End to end game", () => {
     await client.hSet(secondUser.id, "cards", "2S");
     await client.hSet(thirdUser.id, "cards", "3S");
 
+    expect(firstUser.indexThisRound).toEqual(0);
+    expect(secondUser.indexThisRound).toEqual(1);
+    expect(thirdUser.indexThisRound).toEqual(2);
+
     await vote(roomId, firstUser.id, 1);
     await vote(roomId, secondUser.id, 0);
     await vote(roomId, thirdUser.id, 1);
@@ -124,6 +126,10 @@ describe("End to end game", () => {
     await playCard(roomId, thirdUser.id, "3S");
 
     roomData = await getRoomData(roomId);
+
+    expect(roomData.users[1].indexThisRound).toEqual(0);
+    expect(roomData.users[2].indexThisRound).toEqual(1);
+    expect(roomData.users[0].indexThisRound).toEqual(2);
 
     expect(roomData.users[0].lastCardPlayed).toBeNull();
     expect(roomData.users[1].lastCardPlayed).toBeNull();

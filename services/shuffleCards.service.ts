@@ -120,6 +120,8 @@ export const shuffleCards = (
 
   const slicedDeck = deck.slice(-numberOfPlayers * 8);
   randomShuffle(slicedDeck);
+  randomShuffle(slicedDeck);
+  randomShuffle(slicedDeck);
 
   const numberOfCards =
     type === "1-8-1"

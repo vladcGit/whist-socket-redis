@@ -16,6 +16,7 @@ import {
   updateUserPoints,
   setUserLastPlayedCard,
   resetUserScoreThisRound,
+  getUserCards,
 } from "./user.redis.service";
 import {
   determineWinner,
@@ -132,7 +133,10 @@ const vote = async (
     throw new Error("You have already voted");
   }
 
-  const isLastPlayer = room.users[room.users.length - 1].id === userId;
+  const isLastPlayer =
+    room.users.find((u) => u.id === userId)?.indexThisRound ===
+    room.users.length - 1;
+
   const sumOfPrevVotes = room.users
     .map((user) => user.voted)
     .reduce((a, b) => (a || 0) + (b || 0), 0);
@@ -152,17 +156,55 @@ const vote = async (
 };
 
 const playCard: (
-  roomId: string,
+  //todo: check if card can be played (same suite or atu)
+  roomId: string, //todo: the player who wins the round is first to play (see how you can implement that and retain position at the start of the round)
   userId: string,
   card: string
 ) => Promise<void> = async (roomId: string, userId: string, card: string) => {
   let room = await getRoomData(roomId);
+
   if (!room.started) {
     throw new Error("Game has not started yet");
   }
 
   if (room.ended) {
     throw new Error("Game has ended");
+  }
+
+  const currentUser = room.users.find((u) => u.id === userId);
+  if (!currentUser) {
+    throw new Error("This user does not exist");
+  }
+
+  const currentUserCards = await getUserCards(userId);
+
+  if (currentUserCards.length === 0) {
+    throw new Error("You have no cards");
+  }
+
+  const firstCardPlayed = room.users.find(
+    (u) => u.indexThisRound === 0
+  )?.lastCardPlayed;
+
+  if (firstCardPlayed) {
+    const firstSuite = firstCardPlayed[1];
+    const atuSuite = room.atu ? room.atu[1] : null;
+    const playerSuites = currentUserCards.map((c) => c[1]);
+
+    if (playerSuites.includes(firstSuite) && card[1] !== firstSuite) {
+      throw new Error(
+        "You must play a card of the same suite as the first card played"
+      );
+    }
+
+    if (
+      card[1] !== firstSuite &&
+      atuSuite &&
+      playerSuites.includes(atuSuite) &&
+      card[1] !== atuSuite
+    ) {
+      throw new Error("You must play a card of the same suite as the ATU");
+    }
   }
 
   await userPlayCard(userId, card);
@@ -179,6 +221,9 @@ const playCard: (
     throw new Error("No winner");
   }
   await updateUserScoreThisRound(winnerId, 1);
+  await Promise.all(
+    room.users.map((user) => setUserLastPlayedCard(user.id, null))
+  );
 
   room = await getRoomData(roomId);
 
@@ -189,7 +234,8 @@ const playCard: (
         user.pointsThisRound === user.voted
           ? user.voted + 5
           : -(user.voted || 0);
-      promisesArray.push(updateUserPoints(user.id, score));
+      promisesArray.push(updateUserPoints(user.id, score)); // todo: it's probably not correct
+      // todo: on games of 3 it's not calculated correctly
     }
 
     await Promise.all(promisesArray);
@@ -224,13 +270,12 @@ const nextRound: (roomId: string) => Promise<void> = async (roomId: string) => {
 
   for (let user of roomData.users) {
     let indexThisRound = user.indexThisRound;
-    if (indexThisRound && indexThisRound === roomData.users.length - 1) {
-      indexThisRound = 0;
-    }
-    if (indexThisRound && indexThisRound < roomData.users.length - 1) {
-      indexThisRound++;
-    }
-    if (!indexThisRound) {
+    const validIndex = !Number.isNaN(indexThisRound);
+    if (validIndex && indexThisRound === 0) {
+      indexThisRound = roomData.users.length - 1;
+    } else if (validIndex && indexThisRound > 0) {
+      indexThisRound--;
+    } else {
       indexThisRound = user.index;
     }
 

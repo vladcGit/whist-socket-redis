@@ -151,4 +151,5 @@ export {
   updateUserPoints,
   setUserLastPlayedCard,
   resetUserScoreThisRound,
+  setUserCards,
 };
