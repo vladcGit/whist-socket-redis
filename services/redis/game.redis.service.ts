@@ -16,6 +16,7 @@ import {
   updateUserPoints,
   setUserLastPlayedCard,
   resetUserScoreThisRound,
+  getUserCards,
 } from "./user.redis.service";
 import {
   determineWinner,
@@ -161,12 +162,49 @@ const playCard: (
   card: string
 ) => Promise<void> = async (roomId: string, userId: string, card: string) => {
   let room = await getRoomData(roomId);
+
   if (!room.started) {
     throw new Error("Game has not started yet");
   }
 
   if (room.ended) {
     throw new Error("Game has ended");
+  }
+
+  const currentUser = room.users.find((u) => u.id === userId);
+  if (!currentUser) {
+    throw new Error("This user does not exist");
+  }
+
+  const currentUserCards = await getUserCards(userId);
+
+  if (currentUserCards.length === 0) {
+    throw new Error("You have no cards");
+  }
+
+  const firstCardPlayed = room.users.find(
+    (u) => u.indexThisRound === 0
+  )?.lastCardPlayed;
+
+  if (firstCardPlayed) {
+    const firstSuite = firstCardPlayed[1];
+    const atuSuite = room.atu ? room.atu[1] : null;
+    const playerSuites = currentUserCards.map((c) => c[1]);
+
+    if (playerSuites.includes(firstSuite) && card[1] !== firstSuite) {
+      throw new Error(
+        "You must play a card of the same suite as the first card played"
+      );
+    }
+
+    if (
+      card[1] !== firstSuite &&
+      atuSuite &&
+      playerSuites.includes(atuSuite) &&
+      card[1] !== atuSuite
+    ) {
+      throw new Error("You must play a card of the same suite as the ATU");
+    }
   }
 
   await userPlayCard(userId, card);
