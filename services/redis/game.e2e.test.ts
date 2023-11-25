@@ -66,7 +66,6 @@ describe("End to end game", () => {
   test("users should not have any last card played", async () => {
     const roomData = await getRoomData(roomId);
     for (let user of roomData.users) {
-      console.log(user.lastCardPlayed);
       expect(user.lastCardPlayed).toBeNull();
     }
   });
