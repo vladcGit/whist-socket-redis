@@ -1,16 +1,17 @@
 import { useState, useEffect, SetStateAction, ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useSocket } from "../hooks/useSocket";
 import Cookies from "js-cookie";
 import { WhistGame, gameType } from "../../../lib/types";
 import {
   Button,
   Card,
+  Center,
   Checkbox,
   Container,
   Divider,
   Grid,
   Group,
+  Loader,
   Radio,
   Skeleton,
   Text,
@@ -18,7 +19,7 @@ import {
 import { useUserContext } from "../store/user-context";
 import classes from "./Room.module.css";
 import axios from "axios";
-import { Socket } from "socket.io-client";
+import { socket } from "../lib/socket";
 
 export default function Room() {
   const { id } = useParams();
@@ -29,16 +30,23 @@ export default function Room() {
   const navigate = useNavigate();
 
   const [game, setGame] = useState<WhistGame | null>(null);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socketEventsReady, setSocketEventsReady] = useState(false);
+
+  const cookie = Cookies.get("Authorization") as string;
 
   const { user } = useUserContext();
 
-  useEffect(() => {
-    console.log(id);
+  if (cookie && !socket.connected && socketEventsReady) {
+    socket.auth = {
+      token: cookie,
+    };
+    socket.connect();
+  }
 
+  useEffect(() => {
     function onConnect() {
-      console.log("connected");
       console.log(socket.id);
+      socket.emit("newPlayer");
     }
 
     function onNewPlayer(data: WhistGame) {
@@ -50,22 +58,20 @@ export default function Room() {
       navigate(`/room/${id}/game`);
     }
 
-    const cookie = Cookies.get("Authorization") as string;
-    const socket = useSocket(id, cookie);
-    setSocket(socket);
     socket.on("connect", onConnect);
     socket.on("startGame", onStartGame);
     socket.on("newPlayer", onNewPlayer);
-    socket.connect();
 
-    socket.emit("newPlayer");
+    setSocketEventsReady(true);
 
     return () => {
       socket.off("connect", onConnect);
       socket.off("startGame", onStartGame);
       socket.off("newPlayer", onNewPlayer);
+
+      // socket.disconnect();
     };
-  }, []);
+  }, [id, navigate]);
 
   const handleStartGame = () => {
     socket?.emit("startGame");
@@ -88,6 +94,14 @@ export default function Room() {
       setGame(oldGame);
     }) as SetStateAction<WhistGame | null>);
   }; // todo
+
+  if (!game) {
+    return (
+      <Center style={{ height: "100vh" }}>
+        <Loader color="blue" size="xl" type="dots" />
+      </Center>
+    );
+  }
 
   return (
     <div className={classes.wrapper}>

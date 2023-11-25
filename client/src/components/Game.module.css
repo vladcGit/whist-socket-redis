@@ -1,0 +1,23 @@
+.image {
+  max-width: 100%;
+  max-height: 20vh;
+  cursor: pointer;
+  margin: 10;
+}
+
+.description {
+  margin-top: var(--mantine-spacing-xl);
+  font-size: rem(24px);
+
+  @media (max-width: $mantine-breakpoint-sm) {
+    font-size: rem(18px);
+  }
+}
+
+.skeleton {
+  /* margin: 10px; */
+}
+
+.divider {
+  width: 80%;
+}
