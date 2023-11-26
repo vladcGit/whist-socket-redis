@@ -8,6 +8,7 @@ import StandingModal from "./StandingModal";
 import classes from "./Game.module.css";
 import Players from "./Players";
 import { socket } from "../lib/socket";
+import customNotification from "../lib/customNotification";
 
 export default function Game() {
   const { id } = useParams();
@@ -97,9 +98,61 @@ export default function Game() {
   }, [user]);
 
   const playCard = (card: string | null) => {
-    if (!card || card === "blank") {
+    if (!card || card === "blank" || !game || !user) {
       return;
     }
+
+    const currentUser = game.users.find((u) => u.id === user.id);
+
+    if (!currentUser) {
+      throw new Error("Cannot find current user");
+    }
+
+    if (!currentUser.cards.includes(card)) {
+      return;
+    }
+
+    const userSuites = currentUser.cards.split(",").map((c) => c[1]);
+
+    const suiteToWord: Record<string, string> = {
+      S: "spade",
+      H: "heart",
+      D: "diamond",
+      C: "club",
+    };
+
+    const firstCardPlayed = game.users.find(
+      (u) => u.indexThisRound === 0
+    )?.lastCardPlayed;
+
+    if (firstCardPlayed) {
+      if (
+        userSuites.includes(firstCardPlayed[1]) &&
+        firstCardPlayed[1] !== card[1]
+      ) {
+        return customNotification(
+          "Error",
+          `You cannot play this card, you must play a ${
+            suiteToWord[firstCardPlayed[1]]
+          }`
+        );
+      }
+
+      if (
+        !userSuites.includes(firstCardPlayed[1]) &&
+        game.atu &&
+        userSuites.includes(game.atu[1]) &&
+        game.atu[1] !== card[1]
+      ) {
+        return customNotification(
+          "Error",
+          `You cannot play this card, you must play a ${
+            suiteToWord[game.atu[1]]
+          }`
+        );
+      }
+    }
+
     socket?.emit("playedCard", card);
   };
 
