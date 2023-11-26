@@ -233,7 +233,7 @@ const playCard: (
       const score =
         user.pointsThisRound === user.voted
           ? user.voted + 5
-          : -(user.voted || 0);
+          : -Math.abs(user.voted || 0 - user.pointsThisRound);
       promisesArray.push(updateUserPoints(user.id, score)); // todo: it's probably not correct
       // todo: on games of 3 it's not calculated correctly
     }
