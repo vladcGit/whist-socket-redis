@@ -216,7 +216,9 @@ const playCard: (
   }
 
   const winnerIndex = determineWinner(room);
-  const winnerId = room.users.find((user) => user.index === winnerIndex)?.id;
+  const winnerId = room.users.find(
+    (user) => user.indexThisRound === winnerIndex
+  )?.id;
   if (!winnerId) {
     throw new Error("No winner");
   }
@@ -247,9 +249,8 @@ const playCard: (
       const score =
         user.pointsThisRound === user.voted
           ? user.voted + 5
-          : -Math.abs(user.voted || 0 - user.pointsThisRound);
-      promisesArray.push(updateUserPoints(user.id, score)); // todo: it's probably not correct
-      // todo: on games of 3 it's not calculated correctly
+          : -Math.abs(user.pointsThisRound - (user.voted || 0));
+      promisesArray.push(updateUserPoints(user.id, score));
     }
 
     await Promise.all(promisesArray);
@@ -291,7 +292,7 @@ const nextRound: (roomId: string) => Promise<void> = async (roomId: string) => {
 
   const userPromises = actualOrder.map((id, index) =>
     updateUserForNewRound(id, index, cards[index].join(","))
-    );
+  );
 
   await Promise.all([...userPromises, setAtu(roomId, atu)]);
 };
