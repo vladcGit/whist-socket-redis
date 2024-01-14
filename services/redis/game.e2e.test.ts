@@ -140,6 +140,37 @@ describe("End to end game", () => {
     expect(roomData.users[2].points).toBe(-1);
   });
 
+  test("should get the correct indexThisRound", async () => {
+    let roomData = await getRoomData(roomId);
+    const firstUser = roomData.users[0];
+    const secondUser = roomData.users[1];
+    const thirdUser = roomData.users[2];
+
+    await setAtu(roomId, "KH");
+
+    await client.hSet(firstUser.id, "cards", "AH,2D");
+    await client.hSet(secondUser.id, "cards", "2S,3D");
+    await client.hSet(thirdUser.id, "cards", "3S,4D");
+
+    expect(firstUser.indexThisRound).toEqual(2);
+    expect(secondUser.indexThisRound).toEqual(0);
+    expect(thirdUser.indexThisRound).toEqual(1);
+
+    await vote(roomId, firstUser.id, 1);
+    await vote(roomId, secondUser.id, 0);
+    await vote(roomId, thirdUser.id, 0);
+
+    await playCard(roomId, secondUser.id, "2S");
+    await playCard(roomId, thirdUser.id, "3S");
+    await playCard(roomId, firstUser.id, "AH");
+
+    roomData = await getRoomData(roomId);
+
+    expect(roomData.users[0].indexThisRound).toEqual(0);
+    expect(roomData.users[1].indexThisRound).toEqual(1);
+    expect(roomData.users[2].indexThisRound).toEqual(2);
+  });
+
   afterAll(async () => {
     const promises = [roomKey, usersUniqueSetKey, ...usersKey].map((key) =>
       client.del(key)

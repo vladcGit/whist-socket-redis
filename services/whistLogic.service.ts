@@ -1,19 +1,6 @@
 import { WhistGame, suite } from "../lib/types";
 
-const compareCards = (
-  a: string,
-  b: string,
-  firstSuite: suite,
-  atu: string | null = null
-) => {
-  if (atu) {
-    if (a[1] === atu[1] && b[1] !== atu[1]) return -1;
-    else if (a[1] !== atu[1] && b[1] === atu[1]) return 1;
-  }
-
-  if (a[1] === firstSuite[0] && b[1] !== firstSuite[0]) return -1;
-  else if (a[1] !== firstSuite[0] && b[1] === firstSuite[0]) return 1;
-
+const compareCards = (a: string, b: string) => {
   if (a[0] === "A") return -1;
   if (b[0] === "A") return 1;
 
@@ -35,30 +22,37 @@ const compareCards = (
 export const determineWinner = (room: WhistGame): number => {
   // get the order of the players this turn (by index assigned at room creation)
 
-  room.users.sort((a, b) => a.indexThisRound - b.indexThisRound);
-  const firstPlayerCard = room.users[0].lastCardPlayed;
+  const cardsWithPlayerIndex = room.users
+    .sort((u1, u2) => u1.indexThisRound - u2.indexThisRound)
+    .map((user) => ({
+      indexThisRound: user.indexThisRound,
+      card: user.lastCardPlayed as string,
+    }));
+
+  const firstPlayerCard = cardsWithPlayerIndex[0].card;
   if (!firstPlayerCard) {
     throw new Error("No card has been played this round");
   }
-  const cardsWithPlayerIndex = room.users.map((user) => ({
-    index: user.indexThisRound,
-    card: user.lastCardPlayed,
-  }));
 
   if (cardsWithPlayerIndex.some((user) => !user.card)) {
     throw new Error("An user has not played a card this round");
   }
 
-  cardsWithPlayerIndex.sort((a, b) =>
-    compareCards(
-      a.card as string,
-      b.card as string,
-      firstPlayerCard[1] as suite,
-      room.atu
-    )
-  );
+  if (room.atu) {
+    const atuCards = cardsWithPlayerIndex.filter(
+      (x) => x.card[1] === (room.atu as string)[1]
+    );
+    if (atuCards.length > 0) {
+      atuCards.sort((a, b) => compareCards(a.card, b.card));
+      return atuCards[0].indexThisRound;
+    }
+  }
 
-  return cardsWithPlayerIndex[0].index;
+  const cardsWithSuite = cardsWithPlayerIndex.filter(
+    (x) => x.card[1] === firstPlayerCard[1]
+  );
+  cardsWithSuite.sort((a, b) => compareCards(a.card, b.card));
+  return cardsWithSuite[0].indexThisRound;
 };
 
 export const getValidNumberOfPlayers: () => [number, number] = () => {
