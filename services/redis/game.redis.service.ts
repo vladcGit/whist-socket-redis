@@ -157,7 +157,7 @@ const vote = async (
 
 const playCard: (
   //todo: check if card can be played (same suite or atu)
-  roomId: string, //todo: the player who wins the round is first to play (see how you can implement that and retain position at the start of the round)
+  roomId: string,
   userId: string,
   card: string
 ) => Promise<void> = async (roomId: string, userId: string, card: string) => {
@@ -225,6 +225,20 @@ const playCard: (
     room.users.map((user) => setUserLastPlayedCard(user.id, null))
   );
 
+  // updates indexThisRound based on the winner
+  const prevOrder = room.users.sort((u) => u.indexThisRound).map((u) => u.id);
+  const actualOrder: string[] = [];
+  for (let i = winnerIndex; i < prevOrder.length; i++) {
+    actualOrder.push(prevOrder[i]);
+  }
+  for (let i = 0; i < winnerIndex; i++) {
+    actualOrder.push(prevOrder[i]);
+  }
+
+  await Promise.all(
+    actualOrder.map((id, index) => client.hSet(id, "indexThisRound", index))
+  );
+
   room = await getRoomData(roomId);
 
   if (room.users.every((user) => user.cards.length === 0)) {
@@ -253,40 +267,31 @@ const nextRound: (roomId: string) => Promise<void> = async (roomId: string) => {
     ...roomData.users.map((user) => resetUserScoreThisRound(user.id)),
   ]);
 
-  // todo: check if game is over
   if (getMaximumRoundNumber(roomData.users.length) < roomData.round) {
     await endGame(roomId);
     return;
   }
 
-  // todo: get cards from whist service
   const { cards, atu } = shuffleCards(
     roomData.round,
     roomData.type,
     roomData.users.length
   );
 
-  const userPromises: Promise<void>[] = [];
+  const prevOrder = roomData.users.sort((u) => u.index).map((u) => u.id);
+  const actualOrder: string[] = [];
+  const firstIndex = (roomData.round - 1) % roomData.users.length;
 
-  for (let user of roomData.users) {
-    let indexThisRound = user.indexThisRound;
-    const validIndex = !Number.isNaN(indexThisRound);
-    if (validIndex && indexThisRound === 0) {
-      indexThisRound = roomData.users.length - 1;
-    } else if (validIndex && indexThisRound > 0) {
-      indexThisRound--;
-    } else {
-      indexThisRound = user.index;
-    }
-
-    userPromises.push(
-      updateUserForNewRound(
-        user.id,
-        indexThisRound,
-        cards[indexThisRound].join(",")
-      )
-    );
+  for (let i = firstIndex; i < prevOrder.length; i++) {
+    actualOrder.push(prevOrder[i]);
   }
+  for (let i = 0; i < firstIndex; i++) {
+    actualOrder.push(prevOrder[i]);
+  }
+
+  const userPromises = actualOrder.map((id, index) =>
+    updateUserForNewRound(id, index, cards[index].join(","))
+    );
 
   await Promise.all([...userPromises, setAtu(roomId, atu)]);
 };
