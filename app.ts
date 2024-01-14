@@ -12,6 +12,7 @@ import {
 
 const app = express();
 app.use(express.json());
+app.use(express.static("public"));
 
 app.get("/api/hello", (req, res) => {
   return res.status(200).json({ message: "Hello" });
@@ -103,6 +104,10 @@ app.put("/api/edit-game/:id/type", async (req, res) => {
   const { type }: { type: gameType } = req.body;
   await setGameType(id, type);
   return res.status(200);
+});
+
+app.get("*", async (req, res) => {
+  return res.sendFile("index.html", { root: "public" });
 });
 
 export default app;
