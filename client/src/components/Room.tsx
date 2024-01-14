@@ -75,7 +75,7 @@ export default function Room() {
 
   const handleStartGame = () => {
     socket?.emit("startGame");
-  }; // todo
+  };
 
   const handleModifyGameType = async (e: ChangeEvent<HTMLInputElement>) => {
     //todo solve

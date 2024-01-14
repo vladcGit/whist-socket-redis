@@ -2,7 +2,7 @@ import { useState, useEffect, useReducer } from "react";
 import Cookies from "js-cookie";
 import { useParams } from "react-router-dom";
 import { WhistGame } from "../../../lib/types";
-import { Divider, Skeleton, Text } from "@mantine/core";
+import { Center, Divider, Skeleton, Text } from "@mantine/core";
 import { useUserContext } from "../store/user-context";
 import StandingModal from "./StandingModal";
 import classes from "./Game.module.css";
@@ -169,6 +169,7 @@ export default function Game() {
   return (
     <>
       {game && <StandingModal game={game} />}
+      {user && game && game.ended && <Center>Game Over</Center>}
       {user && game && !game.ended && (
         <div style={{ minHeight: "100vh" }}>
           <div
